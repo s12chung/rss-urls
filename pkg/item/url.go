@@ -28,7 +28,7 @@ type HTMLMetadata struct {
 func FromURL(u string) (Item, error) {
 	parsedURL, err := url.Parse(u)
 	if err != nil {
-		return Item{}, fmt.Errorf("parse error: %w", err)
+		return Item{}, fmt.Errorf("url parse error: %w", err)
 	}
 
 	resp, err := http.Get(u)
@@ -71,7 +71,7 @@ func contentMeta(resp *http.Response, parsedURL *url.URL) (*HTMLMetadata, error)
 func traverseHTML(body io.ReadCloser) (*HTMLMetadata, error) {
 	doc, err := html.Parse(body)
 	if err != nil {
-		return nil, fmt.Errorf("parse error: %w", err)
+		return nil, fmt.Errorf("html parse error: %w", err)
 	}
 
 	meta := &HTMLMetadata{}
