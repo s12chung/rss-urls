@@ -1,0 +1,8 @@
+export RSS_TITLE="A RSS Feed"
+export RSS_LINK=
+export RSS_DESCRIPTION="A RSS Feed"
+
+export BUCKET_NAME=
+export AWS_ACCESS_KEY_ID=
+export AWS_SECRET_ACCESS_KEY=
+export AWS_DEFAULT_REGION=us-east-1
