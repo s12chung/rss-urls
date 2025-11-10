@@ -2,6 +2,7 @@ package item
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -29,7 +30,19 @@ func FromURL(u string) (Item, error) {
 	if err != nil {
 		return Item{}, fmt.Errorf("parse error: %w", err)
 	}
-	meta, err := traverseHTML(u)
+
+	resp, err := http.Get(u)
+	if err != nil {
+		return Item{}, fmt.Errorf("fetch error: %w", err)
+	}
+	defer func() {
+		err2 := resp.Body.Close()
+		if err == nil {
+			err = err2
+		}
+	}()
+
+	meta, err := contentMeta(resp, parsedURL)
 	if err != nil {
 		return Item{}, err
 	}
@@ -43,18 +56,20 @@ func FromURL(u string) (Item, error) {
 	}, err
 }
 
-func traverseHTML(u string) (*HTMLMetadata, error) {
-	resp, err := http.Get(u)
-	if err != nil {
-		return nil, fmt.Errorf("fetch error: %w", err)
+func contentMeta(resp *http.Response, parsedURL *url.URL) (*HTMLMetadata, error) {
+	contentType := strings.ToLower(resp.Header.Get("Content-Type"))
+
+	if strings.Contains(contentType, "text/html") {
+		return traverseHTML(resp.Body)
+	} else if strings.Contains(contentType, "application/pdf") {
+		return pdfMeta(parsedURL), nil
 	}
-	defer func() {
-		err2 := resp.Body.Close()
-		if err == nil {
-			err = err2
-		}
-	}()
-	doc, err := html.Parse(resp.Body)
+
+	return nil, fmt.Errorf("unsupported content type: %s", contentType)
+}
+
+func traverseHTML(body io.ReadCloser) (*HTMLMetadata, error) {
+	doc, err := html.Parse(body)
 	if err != nil {
 		return nil, fmt.Errorf("parse error: %w", err)
 	}
@@ -63,12 +78,27 @@ func traverseHTML(u string) (*HTMLMetadata, error) {
 	traverse(doc, meta)
 
 	if meta.Title == "" {
-		meta.Title = u
+		meta.Title = "No title"
 	}
 	if meta.Description == "" {
 		meta.Description = "No description"
 	}
 	return meta, nil
+}
+
+func pdfMeta(parsedURL *url.URL) *HTMLMetadata {
+	filename := parsedURL.Path
+	if idx := strings.LastIndex(filename, "/"); idx != -1 {
+		filename = filename[idx+1:]
+	}
+	if filename == "" {
+		filename = "document.pdf"
+	}
+
+	return &HTMLMetadata{
+		Title:       filename,
+		Description: "A PDF File",
+	}
 }
 
 func traverse(n *html.Node, meta *HTMLMetadata) {
