@@ -15,7 +15,6 @@ type Item struct {
 	Title       string `xml:"title"`
 	Link        string `xml:"link"`
 	Description string `xml:"description"`
-	Author      string `xml:"author"`
 	PubDate     string `xml:"pubDate"`
 	GUID        string `xml:"guid"`
 }
@@ -23,7 +22,6 @@ type Item struct {
 type HTMLMetadata struct {
 	Title       string
 	Description string
-	Author      string
 	FinalURL    string
 }
 
@@ -51,11 +49,11 @@ func FromURL(u string) (Item, error) {
 		return Item{}, err
 	}
 
+	simpleHost := strings.TrimPrefix(resp.Request.URL.Host, "www.")
 	return Item{
 		Title:       meta.Title,
 		Link:        meta.FinalURL,
-		Description: meta.Description + "\n\n\n" + Anchor{Href: u, Text: "url"}.HTML(),
-		Author:      meta.Author,
+		Description: Anchor{Href: u, Text: simpleHost}.HTML() + " - " + meta.Description,
 		PubDate:     time.Now().Format(time.RFC1123Z),
 		GUID:        meta.FinalURL,
 	}, err
@@ -79,7 +77,6 @@ func contentMeta(resp *http.Response) (*HTMLMetadata, error) {
 		return nil, fmt.Errorf("unsupported content type: %s", contentType)
 	}
 
-	meta.Author = strings.TrimPrefix(resp.Request.URL.Host, "www.")
 	meta.FinalURL = cleanURL(resp.Request.URL, cleanHost)
 	return meta, nil
 }
