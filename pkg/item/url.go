@@ -56,6 +56,7 @@ func FromURL(u string) (Item, error) {
 
 func contentMeta(resp *http.Response) (*HTMLMetadata, error) {
 	contentType := strings.ToLower(resp.Header.Get("Content-Type"))
+	cleanHost := removeSubdomain(resp.Request.URL.Host)
 
 	var meta *HTMLMetadata
 	var err error
@@ -66,19 +67,24 @@ func contentMeta(resp *http.Response) (*HTMLMetadata, error) {
 		if err != nil {
 			return nil, err
 		}
-		meta.Title = htmlTitle(meta.Title, resp.Request.URL)
+		meta.Title = htmlTitle(meta.Title, cleanHost)
 	} else {
 		return nil, fmt.Errorf("unsupported content type: %s", contentType)
 	}
 
 	meta.Author = strings.TrimPrefix(resp.Request.URL.Host, "www.")
-	meta.FinalURL = cleanURL(resp.Request.URL)
+	meta.FinalURL = cleanURL(resp.Request.URL, cleanHost)
 	return meta, nil
 }
 
-func cleanURL(u *url.URL) string {
-	if strings.Contains(u.Host, "youtube.com") {
-		u.RawQuery = limitParams(u, []string{"v", "list"}).Encode()
+var urlParams = map[string][]string{
+	"youtube.com": {"v", "list"},
+}
+
+func cleanURL(u *url.URL, cleanHost string) string {
+	params, found := urlParams[cleanHost]
+	if found {
+		u.RawQuery = limitParams(u, params).Encode()
 	}
 	return u.String()
 }
@@ -106,12 +112,15 @@ func pdfMeta(u *url.URL) *HTMLMetadata {
 	}
 }
 
-func htmlTitle(title string, u *url.URL) string {
-	prefix := ""
-	if strings.Contains(u.Host, "youtube.com") {
-		prefix = "📺 "
-	} else if strings.Contains(u.Host, "substack.com") {
-		prefix = "🟧 "
+var htmlEmojis = map[string]string{
+	"youtube.com":  "📺",
+	"substack.com": "🟧",
+}
+
+func htmlTitle(title, cleanHost string) string {
+	prefix := htmlEmojis[cleanHost]
+	if prefix != "" {
+		prefix = prefix + " "
 	}
 	return prefix + title
 }

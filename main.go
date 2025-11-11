@@ -92,6 +92,7 @@ func appendRSSItem(i item.Item) (RSS, error) {
 	// Check if URL already exists
 	for _, existing := range rss.Channel.Items {
 		if existing.Link == i.Link {
+			fmt.Println("Item already exists: " + i.Link)
 			return rss, ErrItemExists
 		}
 	}
