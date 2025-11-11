@@ -21,11 +21,20 @@ type Channel struct {
 	Title       string      `xml:"title"`
 	Link        string      `xml:"link"`
 	Description string      `xml:"description"`
+	Image       *Image      `xml:"image,omitempty"`
 	Items       []item.Item `xml:"item"`
 }
 
-var (
-	defaultRSS = RSS{
+type Image struct {
+	URL   string `xml:"url"`
+	Title string `xml:"title"`
+	Link  string `xml:"link"`
+}
+
+var errItemExists = fmt.Errorf("item already exists")
+
+func defaultRSS() RSS {
+	r := RSS{
 		Version: "2.0",
 		Channel: Channel{
 			Title:       getEnvOrDefault("RSS_TITLE", "My Feed"),
@@ -33,8 +42,15 @@ var (
 			Description: getEnvOrDefault("RSS_DESCRIPTION", "Generated feed"),
 		},
 	}
-	ErrItemExists = fmt.Errorf("item already exists")
-)
+	if os.Getenv("RSS_IMAGE") != "" {
+		r.Channel.Image = &Image{
+			URL:   os.Getenv("RSS_IMAGE"),
+			Title: r.Channel.Title,
+			Link:  r.Channel.Link,
+		}
+	}
+	return r
+}
 
 func getEnvOrDefault(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
@@ -67,7 +83,7 @@ func run(url string) error {
 	// Add to feed
 	rss, err := appendRSSItem(i)
 	if err != nil {
-		if err == ErrItemExists {
+		if err == errItemExists {
 			return nil
 		}
 		return err
@@ -86,14 +102,14 @@ func appendRSSItem(i item.Item) (RSS, error) {
 			return RSS{}, err
 		}
 	} else {
-		rss = defaultRSS
+		rss = defaultRSS()
 	}
 
 	// Check if URL already exists
 	for _, existing := range rss.Channel.Items {
 		if existing.Link == i.Link {
 			fmt.Println("Item already exists: " + i.Link)
-			return rss, ErrItemExists
+			return rss, errItemExists
 		}
 	}
 	rss.Channel.Items = append([]item.Item{i}, rss.Channel.Items...)

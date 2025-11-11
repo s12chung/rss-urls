@@ -1,6 +1,7 @@
 export RSS_TITLE="A RSS Feed"
 export RSS_LINK=
 export RSS_DESCRIPTION="A RSS Feed"
+export RSS_IMAGE=
 
 export BUCKET_NAME=
 export AWS_ACCESS_KEY_ID=
