@@ -71,8 +71,26 @@ func contentMeta(resp *http.Response) (*HTMLMetadata, error) {
 	}
 
 	meta.Author = strings.TrimPrefix(resp.Request.URL.Host, "www.")
-	meta.FinalURL = resp.Request.URL.String()
+	meta.FinalURL = cleanURL(resp.Request.URL)
 	return meta, nil
+}
+
+func cleanURL(u *url.URL) string {
+	if strings.Contains(u.Host, "youtube.com") {
+		u.RawQuery = limitParams(u, []string{"v", "list"}).Encode()
+	}
+	return u.String()
+}
+
+func limitParams(u *url.URL, allowed []string) url.Values {
+	filtered := url.Values{}
+	q := u.Query()
+	for _, key := range allowed {
+		if val := q.Get(key); val != "" {
+			filtered.Set(key, val)
+		}
+	}
+	return filtered
 }
 
 func traverseHTML(body io.ReadCloser) (*HTMLMetadata, error) {
@@ -82,7 +100,7 @@ func traverseHTML(body io.ReadCloser) (*HTMLMetadata, error) {
 	}
 
 	meta := &HTMLMetadata{}
-	traverse(doc, meta)
+	traverseNode(doc, meta)
 
 	if meta.Title == "" {
 		meta.Title = "No title"
@@ -105,7 +123,7 @@ func pdfMeta(u *url.URL) *HTMLMetadata {
 	}
 }
 
-func traverse(n *html.Node, meta *HTMLMetadata) {
+func traverseNode(n *html.Node, meta *HTMLMetadata) {
 	if n.Type == html.ElementNode {
 		if n.Data == "title" && meta.Title == "" {
 			if n.FirstChild != nil {
@@ -134,6 +152,6 @@ func traverse(n *html.Node, meta *HTMLMetadata) {
 		if meta.Title != "" && meta.Description != "" {
 			return
 		}
-		traverse(c, meta)
+		traverseNode(c, meta)
 	}
 }
