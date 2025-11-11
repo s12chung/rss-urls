@@ -59,14 +59,14 @@ func contentMeta(resp *http.Response) (*HTMLMetadata, error) {
 
 	var meta *HTMLMetadata
 	var err error
-	if strings.Contains(contentType, "text/html") {
+	if strings.Contains(contentType, "application/pdf") {
+		meta = pdfMeta(resp.Request.URL)
+	} else if strings.Contains(contentType, "text/html") {
 		meta, err = traverseHTML(resp.Body)
 		if err != nil {
 			return nil, err
 		}
 		meta.Title = htmlTitle(meta.Title, resp.Request.URL)
-	} else if strings.Contains(contentType, "application/pdf") {
-		meta = pdfMeta(resp.Request.URL)
 	} else {
 		return nil, fmt.Errorf("unsupported content type: %s", contentType)
 	}
@@ -74,16 +74,6 @@ func contentMeta(resp *http.Response) (*HTMLMetadata, error) {
 	meta.Author = strings.TrimPrefix(resp.Request.URL.Host, "www.")
 	meta.FinalURL = cleanURL(resp.Request.URL)
 	return meta, nil
-}
-
-func htmlTitle(title string, u *url.URL) string {
-	prefix := ""
-	if strings.Contains(u.Host, "youtube.com") {
-		prefix = "📺 "
-	} else if strings.Contains(u.Host, "substack.com") {
-		prefix = "🟧 "
-	}
-	return prefix + title
 }
 
 func cleanURL(u *url.URL) string {
@@ -104,6 +94,28 @@ func limitParams(u *url.URL, allowed []string) url.Values {
 	return filtered
 }
 
+func pdfMeta(u *url.URL) *HTMLMetadata {
+	filename := u.Path
+	if idx := strings.LastIndex(filename, "/"); idx != -1 {
+		filename = filename[idx+1:]
+	}
+
+	return &HTMLMetadata{
+		Title:       "📑 " + filename,
+		Description: "A PDF File",
+	}
+}
+
+func htmlTitle(title string, u *url.URL) string {
+	prefix := ""
+	if strings.Contains(u.Host, "youtube.com") {
+		prefix = "📺 "
+	} else if strings.Contains(u.Host, "substack.com") {
+		prefix = "🟧 "
+	}
+	return prefix + title
+}
+
 func traverseHTML(body io.ReadCloser) (*HTMLMetadata, error) {
 	doc, err := html.Parse(body)
 	if err != nil {
@@ -120,18 +132,6 @@ func traverseHTML(body io.ReadCloser) (*HTMLMetadata, error) {
 		meta.Description = "No description"
 	}
 	return meta, nil
-}
-
-func pdfMeta(u *url.URL) *HTMLMetadata {
-	filename := u.Path
-	if idx := strings.LastIndex(filename, "/"); idx != -1 {
-		filename = filename[idx+1:]
-	}
-
-	return &HTMLMetadata{
-		Title:       "📑 " + filename,
-		Description: "A PDF File",
-	}
 }
 
 func traverseNode(n *html.Node, meta *HTMLMetadata) {
