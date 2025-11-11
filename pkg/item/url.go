@@ -17,6 +17,7 @@ type Item struct {
 	Description string `xml:"description"`
 	PubDate     string `xml:"pubDate"`
 	GUID        string `xml:"guid"`
+	OriginalURL string `xml:"originalUrl"`
 }
 
 type HTMLMetadata struct {
@@ -54,6 +55,7 @@ func FromURL(u string) (Item, error) {
 		Title:       meta.Title,
 		Link:        meta.FinalURL,
 		Description: Anchor{Href: u, Text: simpleHost}.HTML() + " - " + meta.Description,
+		OriginalURL: u,
 		PubDate:     time.Now().Format(time.RFC1123Z),
 		GUID:        meta.FinalURL,
 	}, err
