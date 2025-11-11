@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
@@ -63,23 +64,21 @@ func FromURL(u string) (Item, error) {
 
 func contentMeta(resp *http.Response) (*HTMLMetadata, error) {
 	contentType := strings.ToLower(resp.Header.Get("Content-Type"))
-	cleanHost := removeSubdomain(resp.Request.URL.Host)
 
 	var meta *HTMLMetadata
 	var err error
 	if strings.Contains(contentType, "application/pdf") {
 		meta = pdfMeta(resp.Request.URL)
 	} else if strings.Contains(contentType, "text/html") {
-		meta, err = traverseHTML(resp.Body)
+		meta, err = htmlMeta(resp)
 		if err != nil {
 			return nil, err
 		}
-		meta.Title = htmlTitle(meta.Title, cleanHost)
 	} else {
 		return nil, fmt.Errorf("unsupported content type: %s", contentType)
 	}
 
-	meta.FinalURL = cleanURL(resp.Request.URL, cleanHost)
+	meta.FinalURL = cleanURL(resp.Request.URL)
 	return meta, nil
 }
 
@@ -88,7 +87,8 @@ var urlParams = map[string][]string{
 	"x.com":       {},
 }
 
-func cleanURL(u *url.URL, cleanHost string) string {
+func cleanURL(u *url.URL) string {
+	cleanHost := removeSubdomain(u.Host)
 	params, found := urlParams[cleanHost]
 	if found {
 		u.RawQuery = limitParams(u, params).Encode()
@@ -119,6 +119,27 @@ func pdfMeta(u *url.URL) *HTMLMetadata {
 	}
 }
 
+func htmlMeta(resp *http.Response) (*HTMLMetadata, error) {
+	cleanHost := removeSubdomain(resp.Request.URL.Host)
+
+	meta, err := traverseHTML(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if meta.Title == "" {
+		meta.Title = titleFromURL(resp.Request.URL, cleanHost)
+	}
+
+	if meta.Title == "" {
+		meta.Title = strings.TrimPrefix(resp.Request.URL.Host, "www.")
+	}
+	if meta.Description == "" {
+		meta.Description = resp.Request.URL.String()
+	}
+	meta.Title = htmlTitle(meta.Title, cleanHost)
+	return meta, nil
+}
+
 var htmlEmojis = map[string]string{
 	"youtube.com":  "📺",
 	"substack.com": "🟧",
@@ -133,6 +154,22 @@ func htmlTitle(title, cleanHost string) string {
 	return prefix + title
 }
 
+var jsHosts = map[string]*regexp.Regexp{
+	"x.com": regexp.MustCompile(`^https://x\.com/([^/?]+)(:?/status/)?[^/]*$`),
+}
+
+func titleFromURL(u *url.URL, cleanHost string) string {
+	re := jsHosts[cleanHost]
+	if re == nil {
+		return ""
+	}
+	matches := re.FindStringSubmatch(u.String())
+	if len(matches) < 2 {
+		return ""
+	}
+	return matches[1]
+}
+
 func traverseHTML(body io.ReadCloser) (*HTMLMetadata, error) {
 	doc, err := html.Parse(body)
 	if err != nil {
@@ -141,13 +178,6 @@ func traverseHTML(body io.ReadCloser) (*HTMLMetadata, error) {
 
 	meta := &HTMLMetadata{}
 	traverseNode(doc, meta)
-
-	if meta.Title == "" {
-		meta.Title = "No title"
-	}
-	if meta.Description == "" {
-		meta.Description = "No description"
-	}
 	return meta, nil
 }
 
