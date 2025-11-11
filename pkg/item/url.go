@@ -23,14 +23,11 @@ type Item struct {
 type HTMLMetadata struct {
 	Title       string
 	Description string
+	Author      string
+	FinalHost   string
 }
 
 func FromURL(u string) (Item, error) {
-	parsedURL, err := url.Parse(u)
-	if err != nil {
-		return Item{}, fmt.Errorf("url parse error: %w", err)
-	}
-
 	resp, err := http.Get(u)
 	if err != nil {
 		return Item{}, fmt.Errorf("fetch error: %w", err)
@@ -42,36 +39,45 @@ func FromURL(u string) (Item, error) {
 		}
 	}()
 
-	meta, err := contentMeta(resp, parsedURL)
+	meta, err := contentMeta(resp)
 	if err != nil {
 		return Item{}, err
 	}
+
 	return Item{
 		Title:       meta.Title,
-		Link:        u,
+		Link:        meta.FinalHost,
 		Description: meta.Description,
-		Author:      strings.TrimPrefix(parsedURL.Host, "www."),
+		Author:      meta.Author,
 		PubDate:     time.Now().Format(time.RFC1123Z),
-		GUID:        u,
+		GUID:        meta.FinalHost,
 	}, err
 }
 
-func contentMeta(resp *http.Response, parsedURL *url.URL) (*HTMLMetadata, error) {
+func contentMeta(resp *http.Response) (*HTMLMetadata, error) {
 	contentType := strings.ToLower(resp.Header.Get("Content-Type"))
+	finalHost := strings.TrimPrefix(resp.Request.URL.Host, "www.")
 
+	var meta *HTMLMetadata
+	var err error
 	if strings.Contains(contentType, "text/html") {
-		return traverseHTML(resp.Body)
+		meta, err = traverseHTML(resp.Body)
+		if err != nil {
+			return nil, err
+		}
 	} else if strings.Contains(contentType, "application/pdf") {
-		return pdfMeta(parsedURL), nil
+		meta = pdfMeta(resp.Request.URL)
+	} else {
+		return nil, fmt.Errorf("unsupported content type: %s", contentType)
 	}
-
-	return nil, fmt.Errorf("unsupported content type: %s", contentType)
+	meta.Author = finalHost
+	return meta, nil
 }
 
 func traverseHTML(body io.ReadCloser) (*HTMLMetadata, error) {
 	doc, err := html.Parse(body)
 	if err != nil {
-		return nil, fmt.Errorf("html parse error: %w", err)
+		return nil, fmt.Errorf("parse error: %w", err)
 	}
 
 	meta := &HTMLMetadata{}
@@ -86,13 +92,10 @@ func traverseHTML(body io.ReadCloser) (*HTMLMetadata, error) {
 	return meta, nil
 }
 
-func pdfMeta(parsedURL *url.URL) *HTMLMetadata {
-	filename := parsedURL.Path
+func pdfMeta(u *url.URL) *HTMLMetadata {
+	filename := u.Path
 	if idx := strings.LastIndex(filename, "/"); idx != -1 {
 		filename = filename[idx+1:]
-	}
-	if filename == "" {
-		filename = "document.pdf"
 	}
 
 	return &HTMLMetadata{
