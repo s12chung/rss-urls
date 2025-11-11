@@ -64,6 +64,7 @@ func contentMeta(resp *http.Response) (*HTMLMetadata, error) {
 		if err != nil {
 			return nil, err
 		}
+		meta.Title = htmlTitle(meta.Title, resp.Request.URL)
 	} else if strings.Contains(contentType, "application/pdf") {
 		meta = pdfMeta(resp.Request.URL)
 	} else {
@@ -73,6 +74,16 @@ func contentMeta(resp *http.Response) (*HTMLMetadata, error) {
 	meta.Author = strings.TrimPrefix(resp.Request.URL.Host, "www.")
 	meta.FinalURL = cleanURL(resp.Request.URL)
 	return meta, nil
+}
+
+func htmlTitle(title string, u *url.URL) string {
+	prefix := ""
+	if strings.Contains(u.Host, "youtube.com") {
+		prefix = "📺 "
+	} else if strings.Contains(u.Host, "substack.com") {
+		prefix = "🟧 "
+	}
+	return prefix + title
 }
 
 func cleanURL(u *url.URL) string {
@@ -118,7 +129,7 @@ func pdfMeta(u *url.URL) *HTMLMetadata {
 	}
 
 	return &HTMLMetadata{
-		Title:       filename,
+		Title:       "📑 " + filename,
 		Description: "A PDF File",
 	}
 }
