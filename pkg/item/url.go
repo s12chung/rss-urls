@@ -24,7 +24,7 @@ type HTMLMetadata struct {
 	Title       string
 	Description string
 	Author      string
-	FinalHost   string
+	FinalURL    string
 }
 
 func FromURL(u string) (Item, error) {
@@ -46,17 +46,16 @@ func FromURL(u string) (Item, error) {
 
 	return Item{
 		Title:       meta.Title,
-		Link:        meta.FinalHost,
+		Link:        meta.FinalURL,
 		Description: meta.Description,
 		Author:      meta.Author,
 		PubDate:     time.Now().Format(time.RFC1123Z),
-		GUID:        meta.FinalHost,
+		GUID:        meta.FinalURL,
 	}, err
 }
 
 func contentMeta(resp *http.Response) (*HTMLMetadata, error) {
 	contentType := strings.ToLower(resp.Header.Get("Content-Type"))
-	finalHost := strings.TrimPrefix(resp.Request.URL.Host, "www.")
 
 	var meta *HTMLMetadata
 	var err error
@@ -70,7 +69,9 @@ func contentMeta(resp *http.Response) (*HTMLMetadata, error) {
 	} else {
 		return nil, fmt.Errorf("unsupported content type: %s", contentType)
 	}
-	meta.Author = finalHost
+
+	meta.Author = strings.TrimPrefix(resp.Request.URL.Host, "www.")
+	meta.FinalURL = resp.Request.URL.String()
 	return meta, nil
 }
 
