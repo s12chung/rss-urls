@@ -15,6 +15,8 @@ add: build
 
 upload:
 	aws s3 cp rss.xml s3://$(BUCKET_NAME)/rss.xml --content-type application/rss+xml
+open:
+	open -a "Google Chrome" https://$(BUCKET_NAME).s3.amazonaws.com/rss.xml
 
 TEST ?= ./...
 
