@@ -27,6 +27,13 @@ type HTMLMetadata struct {
 	FinalURL    string
 }
 
+type Anchor struct {
+	Href string
+	Text string
+}
+
+func (a Anchor) HTML() string { return fmt.Sprintf(`<a href="%s">%s</a>`, a.Href, a.Text) }
+
 func FromURL(u string) (Item, error) {
 	resp, err := http.Get(u)
 	if err != nil {
@@ -47,7 +54,7 @@ func FromURL(u string) (Item, error) {
 	return Item{
 		Title:       meta.Title,
 		Link:        meta.FinalURL,
-		Description: meta.Description,
+		Description: meta.Description + "\n\n\n" + Anchor{Href: u, Text: "url"}.HTML(),
 		Author:      meta.Author,
 		PubDate:     time.Now().Format(time.RFC1123Z),
 		GUID:        meta.FinalURL,
