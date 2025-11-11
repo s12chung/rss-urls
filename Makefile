@@ -1,15 +1,15 @@
 BIN ?= dist/rss-urls
 
-add_upload: add
-	cp rss.xml archive/rss-$(shell date +%Y-%m-%d-%H%M).xml
-	make upload
+add_upload: add archive upload
 
+.PHONY: archive
+archive:
+	cp rss.xml archive/rss-$(shell date +%Y-%m-%d-%H%M).xml
 restore:
 	cp $(shell ls -t archive/rss-*.xml | head -n 1) rss.xml
 
 build:
 	go build -v -o $(BIN) .
-
 add: build
 	$(BIN) $(URL)
 
