@@ -85,6 +85,7 @@ func contentMeta(resp *http.Response) (*HTMLMetadata, error) {
 
 var urlParams = map[string][]string{
 	"youtube.com": {"v", "list"},
+	"x.com":       {},
 }
 
 func cleanURL(u *url.URL, cleanHost string) string {
@@ -121,6 +122,7 @@ func pdfMeta(u *url.URL) *HTMLMetadata {
 var htmlEmojis = map[string]string{
 	"youtube.com":  "📺",
 	"substack.com": "🟧",
+	"x.com":        "𝕏",
 }
 
 func htmlTitle(title, cleanHost string) string {
