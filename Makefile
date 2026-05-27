@@ -24,3 +24,6 @@ lint:
 	golangci-lint run $(TEST)
 lint.fix:
 	golangci-lint run --fix $(TEST)
+
+print_latest:
+	head -n 22 rss.xml
