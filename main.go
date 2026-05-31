@@ -31,8 +31,6 @@ type Image struct {
 	Link  string `xml:"link"`
 }
 
-var errItemExists = fmt.Errorf("item already exists")
-
 func defaultRSS() RSS {
 	r := RSS{
 		Version: "2.0",
@@ -74,27 +72,18 @@ func main() {
 }
 
 func run(url string) error {
-	// Extract metadata
 	i, err := item.FromURL(url)
 	if err != nil {
 		return err
 	}
-
-	// Add to feed
 	rss, err := appendRSSItem(i)
 	if err != nil {
-		if err == errItemExists {
-			return nil
-		}
 		return err
 	}
-
-	// Write feed
 	return writeRSS(rss)
 }
 
 func appendRSSItem(i item.Item) (RSS, error) {
-	// Load or create feed
 	var rss RSS
 	data, err := os.ReadFile(rssFile)
 	if err == nil {
@@ -105,11 +94,9 @@ func appendRSSItem(i item.Item) (RSS, error) {
 		rss = defaultRSS()
 	}
 
-	// Check if URL already exists
 	for _, existing := range rss.Channel.Items {
 		if existing.Link == i.Link {
-			fmt.Println("Item already exists: " + i.Link)
-			return rss, errItemExists
+			return rss, fmt.Errorf("item already exists: " + i.Link)
 		}
 	}
 	rss.Channel.Items = append([]item.Item{i}, rss.Channel.Items...)
